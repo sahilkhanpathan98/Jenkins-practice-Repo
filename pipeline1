@@ -1,1 +1,59 @@
-touch sahilkhanpathan
+terraform {
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "ap-south-1" # Mumbai
+}
+
+# Get the default VPC
+data "aws_vpc" "default" {
+  default = true
+}
+
+# Get default subnets
+data "aws_subnet_ids" "default" {
+  vpc_id = data.aws_vpc.default.id
+}
+
+# Security group for SSH
+resource "aws_security_group" "allow_ssh" {
+  name        = "allow_ssh"
+  description = "Allow SSH inbound traffic"
+  vpc_id      = data.aws_vpc.default.id
+
+  ingress {
+    description = "SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"] # Change to your IP for security
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# EC2 instance
+resource "aws_instance" "example" {
+  ami                         = "ami-037c4c1c9d5cb0e1d" # Amazon Linux 2023 in Mumbai
+  instance_type               = "t2.micro"
+  subnet_id                   = data.aws_subnet_ids.default.ids[0]
+  vpc_security_group_ids      = [aws_security_group.allow_ssh.id]
+  key_name                    = "your-keypair-name" # Change this to your AWS key pair name
+  associate_public_ip_address = true
+
+  tags = {
+    Name = "simple-ec2-mumbai"
+  }
+}
+
